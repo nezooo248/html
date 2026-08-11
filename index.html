@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Fond</title>
+<style>
+  html,body{
+    margin:0;padding:0;width:100%;height:100%;
+    overflow:hidden;background:#000;
+  }
+
+  /* Le lecteur couvre l'ecran quel que soit son format, sans bandes
+     noires : on le surdimensionne en 16/9 et on le recentre. */
+  #player{
+    position:absolute;top:50%;left:50%;
+    transform:translate(-50%,-50%);
+    width:100vw;height:56.25vw;
+    min-width:177.78vh;min-height:100vh;
+    border:0;pointer-events:none;
+  }
+
+  /* Masque les zones cliquables et le titre du lecteur. */
+  #shield{position:absolute;inset:0;z-index:2}
+</style>
+</head>
+<body>
+
+<div id="player"></div>
+<div id="shield"></div>
+
+<script>
+/* ---------------------------------------------------------------------
+   Page d'hebergement du fond video.
+
+   Son unique role : servir la video depuis un vrai domaine, pour que
+   YouTube accepte la lecture. L'ecran de chargement de FiveM pointe
+   vers cette page au lieu de pointer vers YouTube directement.
+
+   L'identifiant peut etre passe dans l'URL :
+       https://TON-COMPTE.github.io/TON-DEPOT/?v=IDENTIFIANT
+   Sans parametre, DEFAULT_ID est utilise.
+   --------------------------------------------------------------------- */
+
+var DEFAULT_ID = "Hr4NFyCIsMk";
+
+function readId() {
+  var m = window.location.search.match(/[?&]v=([A-Za-z0-9_-]{6,20})/);
+  return m ? m[1] : DEFAULT_ID;
+}
+
+var VIDEO_ID = readId();
+var player;
+
+// L'API iframe de YouTube donne un controle que les parametres d'URL
+// seuls n'offrent pas : relance propre en fin de video, qualite forcee,
+// et surtout aucune image de fin suggerant d'autres videos.
+var tag = document.createElement("script");
+tag.src = "https://www.youtube.com/iframe_api";
+document.head.appendChild(tag);
+
+window.onYouTubeIframeAPIReady = function () {
+  player = new YT.Player("player", {
+    videoId: VIDEO_ID,
+    playerVars: {
+      autoplay: 1,
+      mute: 1,              // obligatoire, sinon l'autoplay est refuse
+      controls: 0,
+      disablekb: 1,
+      fs: 0,
+      modestbranding: 1,
+      rel: 0,
+      iv_load_policy: 3,
+      playsinline: 1,
+      loop: 1,
+      playlist: VIDEO_ID    // sans ce parametre, loop=1 ne boucle pas
+    },
+    events: {
+      onReady: function (e) {
+        e.target.mute();
+        e.target.playVideo();
+        try { e.target.setPlaybackQuality("hd1080"); } catch (err) {}
+      },
+      onStateChange: function (e) {
+        // Relance manuelle : plus fiable que loop seul, et cela evite
+        // l'ecran de suggestions affiche a la fin.
+        if (e.data === YT.PlayerState.ENDED) {
+          e.target.seekTo(0);
+          e.target.playVideo();
+        }
+      },
+      onError: function () {
+        // Video indisponible : on laisse un fond noir plutot qu'un
+        // message d'erreur YouTube en plein ecran.
+        document.getElementById("player").style.display = "none";
+      }
+    }
+  });
+};
+</script>
+
+</body>
+</html>
